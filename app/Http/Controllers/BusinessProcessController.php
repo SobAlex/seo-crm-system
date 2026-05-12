@@ -2,63 +2,85 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BusinessProcess;
+use App\Models\ProcessStatus;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class BusinessProcessController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
+        return Inertia::render('Settings/BusinessProcesses/Index', [
+            'businessProcesses' => BusinessProcess::with('statuses')->get()
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        //
+        return Inertia::render('Settings/BusinessProcesses/Create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'title' => 'required|string|max:255|unique:business_processes',
+            'description' => 'nullable|string',
+        ]);
+
+        $businessProcess = BusinessProcess::create($validated);
+
+        return redirect()->route('business-processes.index')
+            ->with('success', 'Бизнес-процесс создан');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function show(BusinessProcess $businessProcess)
     {
-        //
+        $businessProcess->load('statuses');
+
+        return Inertia::render('Settings/BusinessProcesses/Show', [
+            'businessProcess' => $businessProcess,
+        ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function edit(BusinessProcess $businessProcess)
     {
-        //
+        return Inertia::render('Settings/BusinessProcesses/Edit', [
+            'businessProcess' => $businessProcess,
+        ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function update(Request $request, BusinessProcess $businessProcess)
     {
-        //
+        $validated = $request->validate([
+            'title' => 'required|string|max:255|unique:business_processes,title,' . $businessProcess->id,
+            'description' => 'nullable|string',
+        ]);
+
+        $businessProcess->update($validated);
+
+        return redirect()->route('business-processes.index')
+            ->with('success', 'Бизнес-процесс обновлён');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function destroy(BusinessProcess $businessProcess)
     {
-        //
+        $businessProcess->delete();
+
+        return back()->with('success', 'Бизнес-процесс удалён');
+    }
+
+    // Добавление статуса в процесс
+    public function addStatus(Request $request, BusinessProcess $businessProcess)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'color' => 'nullable|string',
+            'sort_order' => 'integer',
+        ]);
+
+        $status = $businessProcess->statuses()->create($validated);
+
+        return back()->with('success', 'Статус добавлен');
     }
 }

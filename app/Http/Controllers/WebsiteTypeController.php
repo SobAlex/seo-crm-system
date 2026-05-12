@@ -2,63 +2,67 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\WebsiteType;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class WebsiteTypeController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
+        return Inertia::render('Settings/WebsiteTypes/Index', [
+            'websiteTypes' => WebsiteType::orderBy('sort_order')->get()
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        //
+        return Inertia::render('Settings/WebsiteTypes/Create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'title' => 'required|string|max:255|unique:website_types',
+            'description' => 'nullable|string',
+            'default_metrics' => 'nullable|array',
+            'icon' => 'nullable|string|max:50',
+            'sort_order' => 'integer',
+        ]);
+
+        WebsiteType::create($validated);
+
+        return redirect()->route('website-types.index')
+            ->with('success', 'Тип сайта создан');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function edit(WebsiteType $websiteType)
     {
-        //
+        return Inertia::render('Settings/WebsiteTypes/Edit', [
+            'websiteType' => $websiteType
+        ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function update(Request $request, WebsiteType $websiteType)
     {
-        //
+        $validated = $request->validate([
+            'title' => 'required|string|max:255|unique:website_types,title,' . $websiteType->id,
+            'description' => 'nullable|string',
+            'default_metrics' => 'nullable|array',
+            'icon' => 'nullable|string|max:50',
+            'sort_order' => 'integer',
+        ]);
+
+        $websiteType->update($validated);
+
+        return redirect()->route('website-types.index')
+            ->with('success', 'Тип сайта обновлён');
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function destroy(WebsiteType $websiteType)
     {
-        //
-    }
+        $websiteType->delete();
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return back()->with('success', 'Тип сайта удалён');
     }
 }

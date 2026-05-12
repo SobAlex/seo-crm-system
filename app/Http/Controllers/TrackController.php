@@ -2,63 +2,107 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Track;
+use App\Models\Project;
+use App\Models\BusinessProcess;
+use App\Models\TrackTemplate;
+use App\Services\TemplateService;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class TrackController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected $templateService;
+
+    public function __construct(TemplateService $templateService)
     {
-        //
+        $this->templateService = $templateService;
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function index(Request $request)
     {
-        //
+        $query = Track::with(['businessProcess', 'website', 'project']);
+
+        if ($request->project_id) {
+            $query->where('project_id', $request->project_id);
+        }
+
+        return Inertia::render('Tracks/Index', [
+            'tracks' => $query->orderBy('sort_order')->paginate(20),
+            'projectId' => $request->project_id,
+        ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+    public function create(Request $request)
+    {
+        return Inertia::render('Tracks/Create', [
+            'projects' => Project::orderBy('title')->get(['id', 'title']),
+            'businessProcesses' => BusinessProcess::orderBy('title')->get(['id', 'title']),
+            'trackTemplates' => TrackTemplate::orderBy('title')->get(['id', 'title']),
+            'selectedProjectId' => $request->project_id,
+        ]);
+    }
+
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'project_id' => 'required|exists:projects,id',
+            'website_id' => 'nullable|exists:websites,id',
+            'business_process_id' => 'required|exists:business_processes,id',
+            'track_template_id' => 'nullable|exists:track_templates,id',
+            'sort_order' => 'integer',
+        ]);
+
+        $track = Track::create($validated);
+
+        return redirect()->route('tracks.index', ['project_id' => $track->project_id])
+            ->with('success', 'Трек создан');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function show(Track $track)
     {
-        //
+        $track->load(['businessProcess', 'website', 'project', 'tasks.status', 'tasks.assigneeUser', 'tasks.assigneeContractor']);
+
+        return Inertia::render('Tracks/Show', [
+            'track' => $track,
+        ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function edit(Track $track)
     {
-        //
+        return Inertia::render('Tracks/Edit', [
+            'track' => $track,
+            'projects' => Project::orderBy('title')->get(['id', 'title']),
+            'businessProcesses' => BusinessProcess::orderBy('title')->get(['id', 'title']),
+        ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Track $track)
     {
-        //
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'project_id' => 'required|exists:projects,id',
+            'website_id' => 'nullable|exists:websites,id',
+            'business_process_id' => 'required|exists:business_processes,id',
+            'sort_order' => 'integer',
+            'is_active' => 'boolean',
+        ]);
+
+        $track->update($validated);
+
+        return redirect()->route('tracks.index', ['project_id' => $track->project_id])
+            ->with('success', 'Трек обновлён');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function destroy(Track $track)
     {
-        //
+        $projectId = $track->project_id;
+        $track->delete();
+
+        return redirect()->route('tracks.index', ['project_id' => $projectId])
+            ->with('success', 'Трек удалён');
     }
 }
